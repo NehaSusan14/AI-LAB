@@ -1,0 +1,131 @@
+# Initialize board
+board = {
+    1: ' ', 2: ' ', 3: ' ',
+    4: ' ', 5: ' ', 6: ' ',
+    7: ' ', 8: ' ', 9: ' '
+}
+
+player = 'O'
+bot = 'X'
+
+
+def printBoard(board):
+    print(board[1] + '|' + board[2] + '|' + board[3])
+    print('-+-+-')
+    print(board[4] + '|' + board[5] + '|' + board[6])
+    print('-+-+-')
+    print(board[7] + '|' + board[8] + '|' + board[9])
+    print('\n')
+
+
+def spaceFree(pos):
+    return board[pos] == ' '
+
+
+def checkWin(b, move):
+    # Use passed-in board `b` to avoid side-effects
+    win_combos = [
+        (1, 2, 3), (4, 5, 6), (7, 8, 9),
+        (1, 4, 7), (2, 5, 8), (3, 6, 9),
+        (1, 5, 9), (3, 5, 7)
+    ]
+    return any(b[a] == b[b_] == b[c] == move for a, b_, c in win_combos)
+
+
+def checkDraw():
+    return all(board[key] != ' ' for key in board)
+
+
+def insertLetter(letter, position):
+    if spaceFree(position):
+        board[position] = letter
+        printBoard(board)
+        return True
+    else:
+        print('Position taken, choose another.')
+        return False
+
+
+def playerMove():
+    while True:
+        try:
+            position = int(input('Enter position (1-9) for O: '))
+            if 1 <= position <= 9:
+                if insertLetter(player, position):
+                    break
+            else:
+                print("Invalid input. Enter number between 1 and 9.")
+        except ValueError:
+            print("Invalid input. Please enter a number.")
+
+
+def compMove():
+    bestScore = -float('inf')
+    bestMove = None
+
+    for key in board.keys():
+        if board[key] == ' ':
+            board[key] = bot
+            score = minimax(board, 0, False)
+            board[key] = ' '
+            if score > bestScore:
+                bestScore = score
+                bestMove = key
+
+    insertLetter(bot, bestMove)
+
+
+def minimax(b, depth, isMaximizing):
+    if checkWin(b, bot):
+        return 1
+    elif checkWin(b, player):
+        return -1
+    elif all(b[key] != ' ' for key in b):
+        return 0
+
+    if isMaximizing:
+        bestScore = -float('inf')
+        for key in b.keys():
+            if b[key] == ' ':
+                b[key] = bot
+                score = minimax(b, depth + 1, False)
+                b[key] = ' '
+                bestScore = max(score, bestScore)
+        return bestScore
+    else:
+        bestScore = float('inf')
+        for key in b.keys():
+            if b[key] == ' ':
+                b[key] = player
+                score = minimax(b, depth + 1, True)
+                b[key] = ' '
+                bestScore = min(score, bestScore)
+        return bestScore
+
+
+# Main game loop
+def playGame():
+    print("Welcome to Tic Tac Toe!")
+    printBoard(board)
+
+    while True:
+        compMove()
+        if checkWin(board, bot):
+            print("❌ Bot wins!")
+            break
+        elif checkDraw():
+            print("It's a draw!")
+            break
+
+        playerMove()
+        if checkWin(board, player):
+            print("⭕ You win!")
+            break
+        elif checkDraw():
+            print("It's a draw!")
+            break
+
+
+if __name__ == '__main__':
+    playGame()
+
