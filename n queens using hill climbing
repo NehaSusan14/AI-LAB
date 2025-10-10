@@ -1,0 +1,70 @@
+import random
+import time
+
+def calculate_attacks(board):
+    attacks = 0
+    n = len(board)
+    for i in range(n):
+        for j in range(i + 1, n):
+            if board[i] == board[j] or abs(board[i] - board[j]) == j - i:
+                attacks += 1
+    return attacks
+
+def generate_neighbors(board):
+    neighbors = []
+    n = len(board)
+    for col in range(n):
+        for row in range(n):
+            if row != board[col]:
+                neighbor = board[:]
+                neighbor[col] = row
+                neighbors.append(neighbor)
+    return neighbors
+
+def print_board(board):
+    n = len(board)
+    for r in range(n):
+        line = []
+        for c in range(n):
+            if board[c] == r:
+                line.append('Q')
+            else:
+                line.append('.')
+        print(' '.join(line))
+    print()
+
+def hill_climbing_verbose(n, pause=0.5):
+    # Start with a random board
+    board = [random.randint(0, n - 1) for _ in range(n)]
+    current_attacks = calculate_attacks(board)
+    print("Initial board (attacks = {})".format(current_attacks))
+    print_board(board)
+    
+    step = 0
+    while True:
+        neighbors = generate_neighbors(board)
+        # Sort neighbors by their number of attacks (ascending = fewer attacks is better)
+        neighbors.sort(key=calculate_attacks)
+        best_neighbor = neighbors[0]
+        best_attacks = calculate_attacks(best_neighbor)
+        
+        if best_attacks < current_attacks:
+            # We have an improvement
+            board = best_neighbor
+            current_attacks = best_attacks
+            step += 1
+            print("Step {}: (attacks = {})".format(step, current_attacks))
+            print_board(board)
+            time.sleep(pause)  # optional pause so you can see output gradually
+        else:
+            # No improvement possible — local optimum reached or solved
+            print("Terminated at step {}: (attacks = {})".format(step, current_attacks))
+            print_board(board)
+            return board
+
+# Example usage:
+if __name__ == "__main__":
+    n = 4
+    solution = hill_climbing_verbose(n, pause=0.3)
+    print("Final Board Configuration:")
+    print_board(solution)
