@@ -1,0 +1,63 @@
+from itertools import product
+
+def evaluate(expr, model):
+    if isinstance(expr, str):
+        return model[expr]
+    op = expr[0]
+    if op == 'and':
+        return evaluate(expr[1], model) and evaluate(expr[2], model)
+    elif op == 'or':
+        return evaluate(expr[1], model) or evaluate(expr[2], model)
+    elif op == 'not':
+        return not evaluate(expr[1], model)
+    elif op == 'implies':
+        return (not evaluate(expr[1], model)) or evaluate(expr[2], model)
+    else:
+        raise ValueError(f"Unknown operator: {op}")
+
+def get_symbols(expr):
+    if isinstance(expr, str):
+        return {expr}
+    symbols = set()
+    for subexpr in expr[1:]:
+        symbols.update(get_symbols(subexpr))
+    return symbols
+
+def entails(kb, query):
+    symbols = sorted(list(get_symbols(kb) | get_symbols(query)))
+    print("\nTruth Table:")
+    print(" | ".join(symbols + ['A∨C', 'B∨¬C', 'KB', 'α']))
+    print("-" * (6 * len(symbols) + 30))
+
+    is_entailed = True
+
+    for values in product([False, True], repeat=len(symbols)):
+        model = dict(zip(symbols, values))
+        A_or_C = evaluate(('or', 'A', 'C'), model)
+        B_or_notC = evaluate(('or', 'B', ('not', 'C')), model)
+        kb_val = A_or_C and B_or_notC
+        query_val = evaluate(query, model)
+
+        # Print 1 for True, 0 for False
+        bool_str = lambda x: "1" if x else "0"
+
+        row = [bool_str(model[s]) for s in symbols] + [bool_str(A_or_C), bool_str(B_or_notC), bool_str(kb_val), bool_str(query_val)]
+        print(" | ".join(row))
+
+        if kb_val and not query_val:
+            is_entailed = False
+            print("  --> Counterexample found: KB true, α false!")
+
+    return is_entailed
+
+# KB and alpha from your example
+kb = ('and',
+        ('or', 'A', 'C'),
+        ('or', 'B', ('not', 'C'))
+     )
+
+alpha = ('or', 'A', 'B')
+
+print("Checking if KB entails α:")
+result = entails(kb, alpha)
+print("\nResult: KB entails α? ->", result)
