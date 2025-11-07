@@ -1,0 +1,198 @@
+import copy
+
+# ------------------------------
+# Helper functions
+# ------------------------------
+
+def is_variable(x):
+    return isinstance(x, str) and x.islower()
+
+def occurs_check(var, x, theta):
+    if var == x:
+        return True
+    elif isinstance(x, tuple):
+        pred, args = x
+        return any(occurs_check(var, arg, theta) for arg in args)
+    elif isinstance(x, str) and x in theta:
+        return occurs_check(var, theta[x], theta)
+    return False
+
+# ------------------------------
+# Unification
+# ------------------------------
+
+def unify(x, y, theta=None):
+    if theta is None:
+        theta = {}
+    if theta is False:
+        return False
+    if x == y:
+        return theta
+    if is_variable(x):
+        return unify_var(x, y, theta)
+    if is_variable(y):
+        return unify_var(y, x, theta)
+    if isinstance(x, tuple) and isinstance(y, tuple):
+        if x[0] != y[0] or len(x[1]) != len(y[1]):
+            return False
+        for a, b in zip(x[1], y[1]):
+            theta = unify(a, b, theta)
+            if theta is False:
+                return False
+        return theta
+    if isinstance(x, list) and isinstance(y, list):
+        if len(x) != len(y):
+            return False
+        for a, b in zip(x, y):
+            theta = unify(a, b, theta)
+            if theta is False:
+                return False
+        return theta
+    return False
+
+def unify_var(var, x, theta):
+    if var in theta:
+        return unify(theta[var], x, theta)
+    elif is_variable(x) and x in theta:
+        return unify(var, theta[x], theta)
+    elif occurs_check(var, x, theta):
+        return False
+    else:
+        theta2 = copy.deepcopy(theta)
+        theta2[var] = x
+        return theta2
+
+# ------------------------------
+# Substitution
+# ------------------------------
+
+def subst(theta, x):
+    if isinstance(x, tuple):
+        pred, args = x
+        new_args = [subst(theta, arg) for arg in args]
+        return (pred, new_args)
+    elif is_variable(x) and x in theta:
+        return subst(theta, theta[x])
+    else:
+        return x
+
+# ------------------------------
+# Standardize variables
+# ------------------------------
+
+var_count = 0
+
+def standardize_variables(rule):
+    global var_count
+    premises, conclusion = rule
+    var_map = {}
+
+    def standardize(expr):
+        if isinstance(expr, tuple):
+            pred, args = expr
+            new_args = []
+            for arg in args:
+                if is_variable(arg):
+                    if arg not in var_map:
+                        var_count += 1
+                        var_map[arg] = f"x_{var_count}"
+                    new_args.append(var_map[arg])
+                else:
+                    new_args.append(arg)
+            return (pred, new_args)
+        elif is_variable(expr):
+            if expr not in var_map:
+                var_count += 1
+                var_map[expr] = f"x_{var_count}"
+            return var_map[expr]
+        else:
+            return expr
+
+    new_premises = [standardize(p) for p in premises]
+    new_conclusion = standardize(conclusion)
+    return new_premises, new_conclusion
+
+# ------------------------------
+# Formatting
+# ------------------------------
+
+def format_expr(expr):
+    if isinstance(expr, tuple):
+        pred, args = expr
+        # Flatten arguments if nested
+        flat_args = []
+        for arg in args:
+            if isinstance(arg, list):
+                flat_args.extend(arg)
+            else:
+                flat_args.append(arg)
+        return f"{pred}({', '.join(flat_args)})"
+    return str(expr)
+
+# ------------------------------
+# Forward Chaining
+# ------------------------------
+
+def fol_fc_ask(KB, query):
+    facts = [f for f in KB if isinstance(f, tuple)]
+    rules = [r for r in KB if isinstance(r, list)]
+
+    print("\n=== FORWARD CHAINING TRACE ===")
+    print(f"Initial Facts: {[format_expr(f) for f in facts]}")
+    print(f"Goal Query: {format_expr(query)}\n")
+
+    while True:
+        new_facts = []
+
+        for rule in rules:
+            premises, conclusion = standardize_variables(rule)
+            substitutions_list = [{}]  # start with empty substitution
+
+            for premise in premises:
+                next_subs = []
+                for theta in substitutions_list:
+                    premise_subst = subst(theta, premise)
+                    for fact in facts:
+                        theta_new = unify(premise_subst, fact, theta)
+                        if theta_new is not False:
+                            next_subs.append(theta_new)
+                substitutions_list = next_subs
+
+            for theta in substitutions_list:
+                inferred = subst(theta, conclusion)
+                if not any(unify(inferred, f) is not False for f in facts + new_facts):
+                    new_facts.append(inferred)
+                    print(f"Inferred new fact: {format_expr(inferred)}")
+                    print(f"From rule: {' ∧ '.join(format_expr(p) for p in premises)} → {format_expr(conclusion)}")
+                    print(f"With substitution: {theta}\n")
+
+                    if unify(inferred, query) is not False:
+                        print(f"Query {format_expr(query)} proved with substitution {theta}.\n")
+                        return theta
+
+        if not new_facts:
+            break
+        facts.extend(new_facts)
+
+    print(f"Query {format_expr(query)} could not be proved.\n")
+    return False
+
+# ------------------------------
+# KB and Query
+# ------------------------------
+
+KB = [
+    ('Human', ['Socrates']),
+    ('Human', ['Plato']),
+    ([('Human', ['x'])], ('Mortal', ['x']))  # Rule: Human(x) -> Mortal(x)
+]
+
+query = ('Mortal', ['Socrates'])
+
+# Run forward chaining
+result = fol_fc_ask(KB, query)
+
+if result:
+    print("Result: Query is TRUE with substitution:", result)
+else:
+    print("Result: Query is FALSE")
