@@ -1,0 +1,59 @@
+import math
+
+TREE = {
+    "A": ["B", "C"],
+    "B": ["D", "E"],
+    "C": ["F", "G"],
+    "D": ["H", "I"],
+    "E": ["J", "K"],
+    "F": ["L", "M"],
+    "G": ["N", "O"],
+}
+
+VALUES = {
+    "H": [41,5], "I":[12,90],
+    "J":[101,80], "K":[20,30],
+    "L":[34,80], "M":[36,35],
+    "N":[50,36], "O":[25,3]
+}
+
+def is_terminal(node): return node in VALUES
+def utility(node): return VALUES[node]
+
+def alpha_beta(node, is_max, alpha, beta):
+    print(f"\nNode {node}  α={alpha}  β={beta}")
+
+    if is_terminal(node):
+        val = max(utility(node)) if is_max else min(utility(node))
+        print(f"Terminal {node} → {val}")
+        return val
+
+    if is_max:
+        value = -math.inf
+        for child in TREE[node]:
+            child_val = alpha_beta(child, False, alpha, beta)
+            value = max(value, child_val)
+            alpha = max(alpha, value)
+            print(f"MAX update at {node}: value={value}, α={alpha}")
+            if alpha >= beta:
+                print(f"PRUNE at {node}: α={alpha} ≥ β={beta}")
+                break
+        return value
+
+    else:
+        value = math.inf
+        for child in TREE[node]:
+            child_val = alpha_beta(child, True, alpha, beta)
+            value = min(value, child_val)
+            beta = min(beta, value)
+            print(f"MIN update at {node}: value={value}, β={beta}")
+            if beta <= alpha:
+                print(f"PRUNE at {node}: β={beta} ≤ α={alpha}")
+                break
+        return value
+
+
+print("Running Alpha-Beta Search...\n")
+root_value = alpha_beta("A", True, -math.inf, math.inf)
+
+print("\nFINAL ROOT VALUE =", root_value)
